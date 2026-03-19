@@ -14,4 +14,9 @@ def create_app(config_class=Config):
     from .routes import channels_bp
     app.register_blueprint(channels_bp, url_prefix="/api/channels")
 
+    # добавляем root route прямо сюда
+    @app.route("/")
+    def index():
+        return {"status": "Messenger backend is running 🚀"}
+
     return app
