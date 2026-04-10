@@ -5,7 +5,7 @@ channels_bp = Blueprint("channels", __name__)
 
 @channels_bp.route('/<channel>/')
 def home():
-    return {"message": "Messenger backend is running 🚀"}
+    return {"message": "Messenger backend is running"}
 
 @channels_bp.route("/<channel>/messages", methods=["POST"])
 def post_message(channel):
