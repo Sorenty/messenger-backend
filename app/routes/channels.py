@@ -1,9 +1,15 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, g, current_app
 from ..services.message_service import MessageService
 
 channels_bp = Blueprint("channels", __name__)
 
-@channels_bp.route('/<channel>/')
+@channels_bp.route("/session-demo", methods=["GET"])
+def session_demo():
+    session["visits"] = session.get("visits", 0) + 1
+    current_app.logger.info("session_demo", extra={"visits": session["visits"]})
+    return jsonify({"visits": session["visits"], "request_id": g.request_id})
+
+@channels_bp.route("/<channel>/")
 def home():
     return {"message": "Messenger backend is running"}
 

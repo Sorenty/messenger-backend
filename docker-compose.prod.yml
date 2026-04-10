@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:15
-    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 12
@@ -11,10 +10,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    restart: always
 
   app:
-    build: .
+    image: ghcr.io/YOUR_GHCR_OWNER/messenger-backend:sha-YOUR_COMMIT
     depends_on:
       - db
       - redis
@@ -22,14 +20,10 @@ services:
       - "8080:5000"
     environment:
       DATABASE_URL: postgresql://postgres:12@db:5432/messenger_db
-      SECRET_KEY: dev
+      SECRET_KEY: prod-secret
       SESSION_TYPE: redis
       SESSION_REDIS_URL: redis://redis:6379/1
       SERVICE_NAME: messenger-backend
-      APP_VERSION: local
+      APP_VERSION: sha-YOUR_COMMIT
       WEB_CONCURRENCY: 3
       PORT: 5000
-    restart: always
-
-volumes:
-  postgres_data:
