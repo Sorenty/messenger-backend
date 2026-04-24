@@ -12,8 +12,6 @@ Backend мессенджера на Flask с использованием Docker
 
 docker compose up -d --build
 
-docker-compose up --build --scale app=3
-
 POST http://localhost:8080/api/channels/test/messages
 
 {
@@ -31,3 +29,13 @@ curl.exe -H "X-Request-ID: demo-123" http://localhost:8080/health
 
 curl.exe -c cookies.txt -b cookies.txt http://localhost:8080/api/channels/session-demo
 curl.exe -c cookies.txt -b cookies.txt http://localhost:8080/api/channels/session-demo
+
+
+docker compose exec app flask db upgrade
+docker compose exec db psql -U postgres -d messenger_db -c "\dt"
+Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/channels/test/messages" -ContentType "application/json" -Body '{"sender":"alex","text":"hello"}'
+curl.exe "http://localhost:8080/api/channels/test/messages"
+
+curl.exe http://localhost:8080/api/channels/sleep/10      
+docker kill --signal=SIGTERM messenger-backend-app-1
+curl.exe http://localhost:8080/health

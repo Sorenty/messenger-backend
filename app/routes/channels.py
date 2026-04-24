@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, session, g, current_app
 from ..services.message_service import MessageService
+import time  # 👈 добавить
 
 channels_bp = Blueprint("channels", __name__)
 
@@ -28,3 +29,10 @@ def get_messages(channel):
     limit = int(request.args.get("limit", 100))
     messages = MessageService.get_history(channel, limit=limit)
     return jsonify([m.to_dict() for m in messages]), 200
+
+@channels_bp.route("/sleep/<int:seconds>", methods=["GET"])
+def sleep_demo(seconds):
+    current_app.logger.info("sleep_start", extra={"seconds": seconds})
+    time.sleep(seconds)
+    current_app.logger.info("sleep_end", extra={"seconds": seconds})
+    return jsonify({"slept": seconds, "request_id": g.request_id})

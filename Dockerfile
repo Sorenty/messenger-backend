@@ -9,7 +9,11 @@ RUN pip install --no-cache-dir --default-timeout=100 --trusted-host pypi.org --t
 
 COPY . .
 
+RUN chmod +x /app/entrypoint.sh
+
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.revision=$VCS_REF
 
-CMD ["sh", "-c", "gunicorn -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:${PORT:-5000} 'run:app'"]
+STOPSIGNAL SIGTERM
+
+CMD ["/app/entrypoint.sh"]
