@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Чаты — Messenger{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Чаты</h1>
+  <p>Вы вошли как: <strong>{{ user.email }}</strong></p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Личные чаты</h2>
+      <p>Здесь будет список диалогов 1:1.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Групповые чаты</h2>
+      <p>Здесь будут рабочие группы и каналы.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

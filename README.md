@@ -1,41 +1,32 @@
-# Messenger Backend
+  # Messenger Backend
 
-Backend мессенджера на Flask с использованием Docker, PostgreSQL, Redis и CI/CD.
+  Backend мессенджера на Flask с использованием Docker, PostgreSQL, Redis и CI/CD.
 
----
+  ---
 
-##  Запуск проекта
+  ##  Запуск проекта
 
-Собрать и запустить контейнеры:
+  ### 1. Клонировать репозиторий
+  git clone https://github.com/your-username/messenger-backend.git
+  cd messenger-backend
+  2. Запустить контейнеры
+  docker compose up -d --build
+  3. Применить миграции
+  docker compose exec app flask db upgrade
+  4. Готово
+  Сервер доступен по адресу:
 
----
+  http://localhost:8080
 
-docker compose up -d --build
+  ### Регистрация
 
-POST http://localhost:8080/api/channels/test/messages
+  POST /api/auth/register
 
-{
-  "sender": "alex",
-  "text": "hello"
-}
+  ```json
+  {
+    "email": "admin@example.com",
+    "password": "admin123"
+  }
+  ```
 
-GET http://localhost:8080/api/channels/test/messages
-
-docker compose up -d --build
-
-docker compose logs -f app
-
-curl.exe -H "X-Request-ID: demo-123" http://localhost:8080/health
-
-curl.exe -c cookies.txt -b cookies.txt http://localhost:8080/api/channels/session-demo
-curl.exe -c cookies.txt -b cookies.txt http://localhost:8080/api/channels/session-demo
-
-
-docker compose exec app flask db upgrade
-docker compose exec db psql -U postgres -d messenger_db -c "\dt"
-Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/channels/test/messages" -ContentType "application/json" -Body '{"sender":"alex","text":"hello"}'
-curl.exe "http://localhost:8080/api/channels/test/messages"
-
-curl.exe http://localhost:8080/api/channels/sleep/10      
-docker kill --signal=SIGTERM messenger-backend-app-1
-curl.exe http://localhost:8080/health
+  ---

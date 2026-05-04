@@ -1,11 +1,13 @@
 import uuid
-from flask import Flask, g, request
+from flask import Flask, g, request, session
 from flask_session import Session
 from redis import Redis
 
+from .ws.socketio_instance import socketio
 from config import Config
 from .core.lifecycle import is_shutting_down, register_signal_handlers
 from .logging.logger import configure_logging
+from .services.user_service import UserService
 from .utils.db import db, migrate
 
 
@@ -23,13 +25,27 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    socketio.init_app(app)
 
+    from . import models
     from .routes import channels_bp
+    from .routes.auth import auth_bp
+    from .routes.pages import pages_bp
+    from .routes.chats import chats_bp
+    from .ws import events
+
+
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(channels_bp, url_prefix="/api/channels")
+    app.register_blueprint(pages_bp)
+    app.register_blueprint(chats_bp, url_prefix="/api/chats")
 
     @app.before_request
-    def set_request_id():
+    def set_request_context():
         g.request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        user_id = session.get("user_id")
+        g.current_user = UserService.get_by_id(user_id) if user_id else None
+
         if is_shutting_down():
             return {"error": "service shutting down"}, 503
 
