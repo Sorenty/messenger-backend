@@ -9,11 +9,11 @@
   ### 1. Клонировать репозиторий
   git clone https://github.com/your-username/messenger-backend.git
   cd messenger-backend
-  2. Запустить контейнеры
+  ### 2. Запустить контейнеры
   docker compose up -d --build
-  3. Применить миграции
+  ### 3. Применить миграции
   docker compose exec app flask db upgrade
-  4. Готово
+  ### 4. Готово
   Сервер доступен по адресу:
 
   http://localhost:8080
