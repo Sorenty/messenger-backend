@@ -32,9 +32,10 @@ def create_app(config_class=Config):
     from .routes.auth import auth_bp
     from .routes.pages import pages_bp
     from .routes.chats import chats_bp
+    from .routes.posts import posts_bp
     from .ws import events
 
-
+    app.register_blueprint(posts_bp, url_prefix="/api/posts")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(channels_bp, url_prefix="/api/channels")
     app.register_blueprint(pages_bp)
@@ -57,14 +58,6 @@ def create_app(config_class=Config):
     @app.teardown_appcontext
     def cleanup_db(exception=None):
         db.session.remove()
-
-    @app.route("/")
-    def index():
-        app.logger.info("root_hit", extra={"path": "/"})
-        return {
-            "status": "Messenger backend is running",
-            "version": app.config.get("APP_VERSION", "dev"),
-        }
 
     @app.route("/health")
     def health():

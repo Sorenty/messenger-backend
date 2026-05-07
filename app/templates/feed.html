@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Новости — Messenger{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Новости</h1>
+
+  <form id="postForm" enctype="multipart/form-data">
+    <textarea name="text" id="postText" placeholder="Что нового?" rows="4"></textarea>
+    <input type="file" name="file" id="postFile" accept=".txt,image/*">
+    <button type="submit" class="btn">Опубликовать</button>
+  </form>
+
+  <div id="postsList"></div>
+</section>
+
+<script>
+async function loadPosts() {
+  const res = await fetch("/api/posts");
+  const posts = await res.json();
+  document.getElementById("postsList").innerHTML = posts.map(p => `
+    <div class="post">
+      <p>${p.text || ""}</p>
+      ${p.file_name ? `<p><a href="/${p.file_path.replace("/app/", "")}" target="_blank">${p.file_name}</a></p>` : ""}
+    </div>
+  `).join("");
+}
+
+document.getElementById("postForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+
+  const res = await fetch("/api/posts", {
+    method: "POST",
+    body: formData
+  });
+
+  if (res.ok) {
+    e.target.reset();
+    loadPosts();
+  } else {
+    alert("Не удалось опубликовать");
+  }
+});
+
+loadPosts();
+</script>
+{% endblock %}

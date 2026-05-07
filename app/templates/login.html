@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+  <h1>Вход</h1>
+
+  <form id="loginForm">
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Пароль" required>
+    <button type="submit">Войти</button>
+  </form>
+
+  <p><a href="/register">Регистрация</a></p>
+</section>
+
+<script>
+document.getElementById("loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  const data = {
+    email: form.email.value,
+    password: form.password.value
+  };
+
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  });
+
+  if (res.ok) {
+    window.location.href = "/chats";
+  } else {
+    alert("Ошибка входа");
+  }
+};
+</script>
+{% endblock %}

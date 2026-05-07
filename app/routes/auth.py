@@ -41,7 +41,7 @@ def login():
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
     session.clear()
-    return jsonify({"message": "logged out"}), 200
+    return jsonify({"message": "logged out", "redirect": "/login"}), 200
 
 @auth_bp.route("/me", methods=["GET"])
 def me():

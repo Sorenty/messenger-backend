@@ -18,3 +18,19 @@ class UserService:
     @staticmethod
     def get_by_id(user_id: int) -> User | None:
         return User.query.get(user_id)
+    
+    @staticmethod
+    def list_users():
+        return User.query.order_by(User.email.asc()).all()
+    
+    @staticmethod
+    def search_users(query: str = "", exclude_ids: list[int] | None = None, limit: int = 10):
+        q = User.query
+
+        if query:
+            q = q.filter(User.email.ilike(f"%{query}%"))
+
+        if exclude_ids:
+            q = q.filter(~User.id.in_(exclude_ids))
+
+        return q.order_by(User.email.asc()).limit(limit).all()

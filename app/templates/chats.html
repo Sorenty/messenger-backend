@@ -3,20 +3,464 @@
 {% block title %}Чаты — Messenger{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Чаты</h1>
-  <p>Вы вошли как: <strong>{{ user.email }}</strong></p>
-
-  <div class="grid">
-    <div class="panel">
-      <h2>Личные чаты</h2>
-      <p>Здесь будет список диалогов 1:1.</p>
+<section class="card chats-page">
+  <div class="chats-header">
+    <div>
+      <h1>Чаты</h1>
+      <p class="muted">Вы вошли как: <strong>{{ user.email }}</strong></p>
     </div>
 
-    <div class="panel">
-      <h2>Групповые чаты</h2>
-      <p>Здесь будут рабочие группы и каналы.</p>
-    </div>
+    <button class="btn" id="createGroupBtn" type="button">Новый групповой чат</button>
+  </div>
+
+  <div class="chats-layout">
+    <aside class="chat-list">
+      <h2>Диалоги</h2>
+      <div id="chatItems" class="chat-items"></div>
+    </aside>
+
+    <main class="chat-view">
+      <div class="chat-title-row">
+        <div id="chatTitle" class="chat-title">Выберите чат</div>
+        <div class="chat-actions">
+          <button id="chatSettingsBtn" class="btn btn-secondary" type="button" style="display:none;">⚙️</button>
+          <button id="addMemberBtn" class="btn btn-secondary" type="button">Добавить участника</button>
+        </div>
+      </div>
+
+      <div id="messages" class="messages"></div>
+
+      <form id="messageForm" class="message-form">
+        <input id="messageInput" type="text" placeholder="Введите сообщение..." autocomplete="off">
+        <button type="submit" class="btn">Отправить</button>
+      </form>
+    </main>
   </div>
 </section>
+
+<div id="createChatModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3 id="modalTitle">Создать групповой чат</h3>
+
+    <input id="groupName" type="text" placeholder="Название чата">
+    <input id="userSearchInput" type="text" placeholder="Поиск пользователей...">
+
+    <div class="modal-section">
+      <h4>Выберите участников</h4>
+      <div id="usersList" class="users-list"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="saveGroupChatBtn" type="button" class="btn">Создать</button>
+      <button id="closeModalBtn" type="button" class="btn btn-secondary">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div id="membersModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Участники чата</h3>
+    <div id="membersList" class="members-list"></div>
+    <div class="modal-actions">
+      <button id="closeMembersModalBtn" type="button" class="btn btn-secondary">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const chatItems = document.getElementById("chatItems");
+const messagesEl = document.getElementById("messages");
+const chatTitle = document.getElementById("chatTitle");
+const messageForm = document.getElementById("messageForm");
+const messageInput = document.getElementById("messageInput");
+const createGroupBtn = document.getElementById("createGroupBtn");
+const addMemberBtn = document.getElementById("addMemberBtn");
+const chatSettingsBtn = document.getElementById("chatSettingsBtn");
+
+const createChatModal = document.getElementById("createChatModal");
+const modalTitle = document.getElementById("modalTitle");
+const groupNameInput = document.getElementById("groupName");
+const userSearchInput = document.getElementById("userSearchInput");
+const usersListEl = document.getElementById("usersList");
+const saveGroupChatBtn = document.getElementById("saveGroupChatBtn");
+const closeModalBtn = document.getElementById("closeModalBtn");
+
+const membersModal = document.getElementById("membersModal");
+const membersList = document.getElementById("membersList");
+const closeMembersModalBtn = document.getElementById("closeMembersModalBtn");
+
+let currentChatId = null;
+let currentChatOwnerId = null;
+let currentMode = "create"; // create | add
+let currentTargetChatId = null;
+let allUsers = [];
+const currentUserId = {{ user.id }};
+const socket = io();
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function scrollToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function renderMessage(msg) {
+  const sender = msg.sender || `user #${msg.sender_id ?? ""}`;
+  const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : "";
+  return `
+    <div class="message">
+      <div class="message-meta">
+        <strong>${escapeHtml(sender)}</strong>
+        <span>${time}</span>
+      </div>
+      <div class="message-text">${escapeHtml(msg.text)}</div>
+    </div>
+  `;
+}
+
+function openCreateChatModal() {
+  currentMode = "create";
+  currentTargetChatId = null;
+  modalTitle.textContent = "Создать групповой чат";
+  groupNameInput.value = "";
+  userSearchInput.value = "";
+  usersListEl.innerHTML = "";
+  saveGroupChatBtn.textContent = "Создать";
+  createChatModal.style.display = "flex";
+  loadUsers("");
+  userSearchInput.focus();
+}
+
+function openAddMemberModal(chatId) {
+  currentMode = "add";
+  currentTargetChatId = chatId;
+  modalTitle.textContent = "Добавить участников";
+  groupNameInput.value = "";
+  userSearchInput.value = "";
+  usersListEl.innerHTML = "";
+  saveGroupChatBtn.textContent = "Добавить";
+  createChatModal.style.display = "flex";
+  loadUsers("");
+  userSearchInput.focus();
+}
+
+function closeCreateChatModal() {
+  createChatModal.style.display = "none";
+}
+
+function openMembersModal() {
+  membersModal.style.display = "flex";
+}
+
+function closeMembersModal() {
+  membersModal.style.display = "none";
+}
+
+async function loadUsers(search = "") {
+  const params = new URLSearchParams();
+  if (search) params.set("q", search);
+
+  if (currentMode === "add" && currentTargetChatId) {
+    params.set("chat_id", currentTargetChatId);
+  }
+
+  const url = `/api/chats/users?${params.toString()}`;
+  const res = await fetch(url, { credentials: "same-origin" });
+
+  if (!res.ok) {
+    allUsers = [];
+    usersListEl.innerHTML = "<p class='muted'>Не удалось загрузить пользователей</p>";
+    return [];
+  }
+
+  const users = await res.json();
+  allUsers = users;
+  renderUsersList(users);
+  return users;
+}
+
+function renderUsersList(users) {
+  if (!users.length) {
+    usersListEl.innerHTML = "<p class='muted'>Пользователи не найдены</p>";
+    return;
+  }
+
+  usersListEl.innerHTML = users.map(user => `
+    <label class="user-checkbox">
+      <input type="checkbox" value="${escapeHtml(user.email)}">
+      <span>${escapeHtml(user.email)}</span>
+    </label>
+  `).join("");
+}
+
+async function loadChats() {
+  const res = await fetch("/api/chats", { credentials: "same-origin" });
+
+  if (!res.ok) {
+    chatItems.innerHTML = "<p>Не удалось загрузить чаты</p>";
+    return;
+  }
+
+  const chats = await res.json();
+  chatItems.innerHTML = "";
+
+  if (!chats.length) {
+    chatItems.innerHTML = "<p class='muted'>Чатов пока нет</p>";
+    return;
+  }
+
+  chats.forEach(chat => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "chat-item";
+    item.textContent = chat.name || (chat.is_group ? `Group #${chat.id}` : `Private #${chat.id}`);
+    item.onclick = () => openChat(chat);
+    chatItems.appendChild(item);
+  });
+}
+
+async function openChat(chat) {
+  currentChatId = chat.id;
+  currentChatOwnerId = chat.owner_id;
+  chatTitle.textContent = chat.name || (chat.is_group ? `Групповой чат #${chat.id}` : `Личный чат #${chat.id}`);
+  messagesEl.innerHTML = "<p class='muted'>Загрузка сообщений...</p>";
+
+  chatSettingsBtn.style.display = (currentChatOwnerId === currentUserId) ? "inline-flex" : "none";
+
+  socket.emit("join_chat", { chat_id: currentChatId });
+
+  const res = await fetch(`/api/chats/${currentChatId}/messages`, {
+    credentials: "same-origin"
+  });
+
+  const messages = res.ok ? await res.json() : [];
+
+  messagesEl.innerHTML = messages.length
+    ? messages.map(renderMessage).join("")
+    : "<p class='muted'>Сообщений пока нет</p>";
+
+  scrollToBottom();
+}
+
+async function loadMembers() {
+  if (!currentChatId) return;
+
+  const res = await fetch(`/api/chats/${currentChatId}/members`, {
+    credentials: "same-origin"
+  });
+
+  if (!res.ok) {
+    membersList.innerHTML = "<p class='muted'>Не удалось загрузить участников</p>";
+    return;
+  }
+
+  const members = await res.json();
+
+  if (!members.length) {
+    membersList.innerHTML = "<p class='muted'>Участников нет</p>";
+    return;
+  }
+
+  membersList.innerHTML = members.map(member => {
+    const isOwner = !!member.is_owner;
+    const canManage = currentUserId === currentChatOwnerId && !isOwner;
+
+    const actions = canManage
+      ? `
+        <div class="member-actions">
+          <button class="btn btn-secondary" data-action="remove" data-user-id="${member.user_id}">Кик</button>
+          <button class="btn btn-secondary" data-action="ban" data-user-id="${member.user_id}">Бан</button>
+        </div>
+      `
+      : `<span class="muted">${isOwner ? "Владелец" : (member.is_banned ? "Забанен" : "Участник")}</span>`;
+
+    return `
+      <div class="member-row">
+        <div>
+          <strong>${escapeHtml(member.email || `user #${member.user_id}`)}</strong>
+          <div class="muted">${isOwner ? "Владелец" : (member.is_banned ? "Забанен" : "Активен")}</div>
+        </div>
+        ${actions}
+      </div>
+    `;
+  }).join("");
+
+  membersList.querySelectorAll("[data-action='remove']").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.getAttribute("data-user-id");
+
+      const res = await fetch(`/api/chats/${currentChatId}/members/${userId}`, {
+        method: "DELETE",
+        credentials: "same-origin"
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        await loadMembers();
+        await loadChats();
+      } else {
+        alert(data.error || "Не удалось удалить участника");
+      }
+    });
+  });
+
+  membersList.querySelectorAll("[data-action='ban']").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.getAttribute("data-user-id");
+
+      const res = await fetch(`/api/chats/${currentChatId}/members/${userId}/ban`, {
+        method: "POST",
+        credentials: "same-origin"
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        await loadMembers();
+        await loadChats();
+      } else {
+        alert(data.error || "Не удалось забанить участника");
+      }
+    });
+  });
+}
+
+messageForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!currentChatId) {
+    alert("Сначала выбери чат");
+    return;
+  }
+
+  const text = messageInput.value.trim();
+  if (!text) return;
+
+  socket.emit("send_message", { chat_id: currentChatId, text });
+  messageInput.value = "";
+});
+
+socket.on("new_message", (data) => {
+  if (!currentChatId || data.chat_id !== currentChatId) return;
+  messagesEl.insertAdjacentHTML("beforeend", renderMessage(data.message));
+  scrollToBottom();
+});
+
+socket.on("joined_chat", (data) => {
+  console.log("joined chat", data);
+});
+
+socket.on("error", (data) => {
+  console.error(data);
+  alert(data.error || "Socket error");
+});
+
+createGroupBtn.addEventListener("click", async () => {
+  openCreateChatModal();
+  await loadUsers("");
+});
+
+addMemberBtn.addEventListener("click", async () => {
+  if (!currentChatId) {
+    alert("Сначала выберите чат");
+    return;
+  }
+
+  openAddMemberModal(currentChatId);
+  await loadUsers("");
+});
+
+chatSettingsBtn.addEventListener("click", async () => {
+  if (!currentChatId || currentUserId !== currentChatOwnerId) return;
+  membersModal.style.display = "flex";
+  await loadMembers();
+});
+
+closeMembersModalBtn.addEventListener("click", () => {
+  closeMembersModal();
+});
+
+membersModal.addEventListener("click", (e) => {
+  if (e.target === membersModal) {
+    closeMembersModal();
+  }
+});
+
+closeModalBtn.addEventListener("click", closeCreateChatModal);
+
+userSearchInput.addEventListener("input", async () => {
+  await loadUsers(userSearchInput.value.trim());
+});
+
+saveGroupChatBtn.addEventListener("click", async () => {
+  const selectedEmails = Array.from(
+    document.querySelectorAll("#usersList input[type='checkbox']:checked")
+  ).map(cb => cb.value);
+
+  if (currentMode === "create") {
+    const name = groupNameInput.value.trim();
+
+    if (!name) {
+      alert("Введите название чата");
+      return;
+    }
+
+    const res = await fetch("/api/chats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        type: "group",
+        name,
+        member_emails: selectedEmails
+      })
+    });
+
+    if (res.ok) {
+      closeCreateChatModal();
+      await loadChats();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Не удалось создать чат");
+    }
+    return;
+  }
+
+  if (currentMode === "add") {
+    if (!selectedEmails.length) {
+      alert("Выберите хотя бы одного пользователя");
+      return;
+    }
+
+    for (const email of selectedEmails) {
+      await fetch(`/api/chats/${currentTargetChatId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ email })
+      });
+    }
+
+    closeCreateChatModal();
+    await loadChats();
+    return;
+  }
+});
+
+createChatModal.addEventListener("click", (e) => {
+  if (e.target === createChatModal) {
+    closeCreateChatModal();
+  }
+});
+
+loadChats();
+</script>
 {% endblock %}

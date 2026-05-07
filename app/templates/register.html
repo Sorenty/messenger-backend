@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация — Messenger{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+  <h1>Регистрация</h1>
+
+  <form id="registerForm" class="auth-form">
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Пароль" required>
+    <button type="submit" class="btn">Создать аккаунт</button>
+  </form>
+
+  <p class="muted">
+    Уже есть аккаунт? <a href="/login">Войти</a>
+  </p>
+
+  <div id="errorBox" class="error-box" style="display:none;"></div>
+</section>
+
+<script>
+const form = document.getElementById("registerForm");
+const errorBox = document.getElementById("errorBox");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errorBox.style.display = "none";
+  errorBox.textContent = "";
+
+  const payload = {
+    email: form.email.value.trim(),
+    password: form.password.value
+  };
+
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (res.ok) {
+    window.location.href = "/login";
+    return;
+  }
+
+  errorBox.textContent = data.error || "Ошибка регистрации";
+  errorBox.style.display = "block";
+});
+</script>
+{% endblock %}

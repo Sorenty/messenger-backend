@@ -13,6 +13,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     memberships = db.relationship("Membership", back_populates="user", cascade="all, delete-orphan")
+    owned_chats = db.relationship("Chat", back_populates="owner")
     messages = db.relationship("Message", back_populates="sender_user")
 
     def set_password(self, password: str):

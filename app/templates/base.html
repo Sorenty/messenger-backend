@@ -9,17 +9,51 @@
 <body>
   <header class="topbar">
     <div class="brand">Messenger</div>
+
     <nav class="nav">
-      <a href="/">Главная</a>
-        <a href="/chats">Чаты</a>
-        <form action="/api/auth/logout" method="post" style="display:inline;">
-            <button type="submit" class="link-button">Выйти</button>
+      <a href="{{ url_for('pages.index') }}">Главная</a>
+
+      {% if session.get('user_id') %}
+        <a href="{{ url_for('pages.chats') }}">Чаты</a>
+        <a href="{{ url_for('pages.feed') }}">Новости</a>
+
+        <form id="logoutForm" action="{{ url_for('auth.logout') }}" method="post" style="display:inline;">
+          <button type="submit" class="link-button">Выйти</button>
         </form>
+      {% else %}
+        <a href="{{ url_for('pages.login_page') }}">Вход</a>
+        <a href="{{ url_for('pages.register_page') }}">Регистрация</a>
+      {% endif %}
     </nav>
   </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
   <main class="container">
     {% block content %}{% endblock %}
   </main>
+
+  {% if session.get('user_id') %}
+  <script>
+    document.getElementById("logoutForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const res = await fetch("{{ url_for('auth.logout') }}", { method: "POST" });
+      if (res.ok) {
+        window.location.href = "{{ url_for('pages.login_page') }}";
+      } else {
+        alert("Не удалось выйти");
+      }
+    });
+  </script>
+  {% endif %}
 </body>
 </html>
